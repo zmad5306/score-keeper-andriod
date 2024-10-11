@@ -2,8 +2,13 @@ package dev.zachmaddox.scorekeeper
 
 import android.os.Bundle
 import android.util.Log
+import android.view.ContextMenu
+import android.view.Menu
+import android.view.MenuItem
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -15,11 +20,14 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -155,19 +163,26 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    @OptIn(ExperimentalFoundationApi::class)
     @Composable
-    fun PlayerCard(name: String, whenScoreEntered: (name: String, points: Int) -> Unit) {
+    fun PlayerCard(name: String, whenScoreEntered: (name: String, points: Int) -> Unit, whenPlayerRemoved: (name:String) -> Unit) {
         val inputPlayerScore = remember { mutableStateOf(false) }
+        val haptics = LocalHapticFeedback.current
+        val showContextMenu = remember { mutableStateOf(false) }
         Card(
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
             ),
             modifier = Modifier
                 .fillMaxWidth(0.5f)
-                .aspectRatio(1f),
-            onClick = {
-                inputPlayerScore.value = !inputPlayerScore.value
-            }
+                .aspectRatio(1f)
+                .combinedClickable(
+                    onClick = { inputPlayerScore.value = !inputPlayerScore.value },
+                    onLongClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        showContextMenu.value = true
+                    }
+                )
         ) {
             Column(
                 modifier = Modifier.fillMaxSize(),
@@ -190,8 +205,13 @@ class MainActivity : ComponentActivity() {
                             onDone = {
                                 inputPlayerScore.value = false
 
-                                val points = handScore.value.toString().toInt();
-                                whenScoreEntered(name, points.or(0))
+                                try {
+                                    val points = handScore.value.toInt();
+                                    whenScoreEntered(name, points.or(0))
+                                } catch (e: NumberFormatException) {
+                                    // Do nothing, invalid input
+                                }
+
                                 handScore.value = ""
                             }
                         ),
@@ -211,7 +231,18 @@ class MainActivity : ComponentActivity() {
                 }
 
             }
-
+            DropdownMenu(
+                expanded = showContextMenu.value,
+                onDismissRequest = { showContextMenu.value = false },
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Remove") },
+                    onClick = {
+                        whenPlayerRemoved(name)
+                        showContextMenu.value = false
+                    }
+                )
+            }
         }
     }
 
@@ -244,6 +275,10 @@ class MainActivity : ComponentActivity() {
                          PlayerCard(players[index], whenScoreEntered = {playerName, points ->
                              run {
                                  Log.d("Main Activity", "Got score for $playerName: $points")
+                             }
+                         }, whenPlayerRemoved = {playerName ->
+                             run {
+                                 Log.d("Main Activity", "Player $playerName removed")
                              }
                          })
                      }
