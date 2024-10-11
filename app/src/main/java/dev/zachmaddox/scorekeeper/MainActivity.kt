@@ -18,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
@@ -167,8 +168,15 @@ class MainActivity : ComponentActivity() {
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
+                Icon(Icons.Filled.Person, contentDescription = "Player Icon")
                 Text(name, modifier = Modifier.padding(16.dp))
-                Text("100", modifier = Modifier.padding(16.dp))
+                Badge(
+                    modifier = Modifier.padding(16.dp),
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    content = {
+                        Text("100")
+                    })
             }
 
         }
