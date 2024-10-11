@@ -28,6 +28,15 @@ class PlayerViewModel(context: Context) : ViewModel() {
         savePlayers()
     }
 
+    fun incrementScore(player: Player, points: Int) {
+        player.score += points
+        savePlayers()
+    }
+
+    fun removePlayer(player: Player) {
+        players.remove(player)
+    }
+
     private fun savePlayers() {
         viewModelScope.launch {
             val playerNames = players.map { it.name }.toSet()

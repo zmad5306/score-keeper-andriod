@@ -161,7 +161,7 @@ class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalFoundationApi::class)
     @Composable
-    fun PlayerCard(name: String, whenScoreEntered: (name: String, points: Int) -> Unit, whenPlayerRemoved: (name:String) -> Unit) {
+    fun PlayerCard(player: Player, whenScoreEntered: (player: Player, points: Int) -> Unit, whenPlayerRemoved: (player: Player) -> Unit) {
         val inputPlayerScore = remember { mutableStateOf(false) }
         val haptics = LocalHapticFeedback.current
         val showContextMenu = remember { mutableStateOf(false) }
@@ -186,7 +186,7 @@ class MainActivity : ComponentActivity() {
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Icon(Icons.Filled.Person, contentDescription = "Player Icon")
-                Text(name, modifier = Modifier.padding(16.dp))
+                Text(player.name, modifier = Modifier.padding(16.dp))
                 if (inputPlayerScore.value) {
                     val handScore = remember { mutableStateOf("") }
                     val focusRequester = remember { FocusRequester() }
@@ -203,7 +203,7 @@ class MainActivity : ComponentActivity() {
 
                                 try {
                                     val points = handScore.value.toInt();
-                                    whenScoreEntered(name, points.or(0))
+                                    whenScoreEntered(player, points.or(0))
                                 } catch (e: NumberFormatException) {
                                     // Do nothing, invalid input
                                 }
@@ -222,7 +222,7 @@ class MainActivity : ComponentActivity() {
                         contentColor = MaterialTheme.colorScheme.onPrimary,
                         containerColor = MaterialTheme.colorScheme.primary,
                         content = {
-                            Text("100")
+                            Text(player.score.toString())
                         })
                 }
 
@@ -234,7 +234,7 @@ class MainActivity : ComponentActivity() {
                 DropdownMenuItem(
                     text = { Text("Remove") },
                     onClick = {
-                        whenPlayerRemoved(name)
+                        whenPlayerRemoved(player)
                         showContextMenu.value = false
                     }
                 )
@@ -244,14 +244,14 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun ScoreKeeperApp() {
-        val players = remember { mutableListOf("Zach", "Allison", "Hannah", "Haddie", "Aidan", "Hazel") }
+        val model = PlayerViewModel(this)
         Scaffold(
             topBar = { MyAppBar() },
             floatingActionButtonPosition = FabPosition.End,
             floatingActionButton = { AddPlayerButton(whenConfirmed = {playerName ->
                 run {
                     Log.d("Main Activity", "Adding player $playerName")
-                    players.add(playerName)
+                    model.addPlayer(playerName)
                 }
             }) }
         ) { paddingValues ->
@@ -267,14 +267,16 @@ class MainActivity : ComponentActivity() {
                          bottom = 16.dp,
                      )
                  ) {
-                     items(players.size) { index ->
-                         PlayerCard(players[index], whenScoreEntered = {playerName, points ->
+                     items(model.players.size) { index ->
+                         PlayerCard(model.players[index], whenScoreEntered = { playerName, points ->
                              run {
                                  Log.d("Main Activity", "Got score for $playerName: $points")
+                                 model.incrementScore(model.players[index], points)
                              }
-                         }, whenPlayerRemoved = {playerName ->
+                         }, whenPlayerRemoved = {player ->
                              run {
-                                 Log.d("Main Activity", "Player $playerName removed")
+                                 Log.d("Main Activity", "Player ${player.name} removed")
+                                 model.removePlayer(player);
                              }
                          })
                      }
