@@ -117,7 +117,7 @@ class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun MyAppBar() {
+    fun MyAppBar(onNewGame: (targetScore: Int) -> Unit) {
         val openNewGameDialog = remember { mutableStateOf(false) }
 
         TopAppBar(
@@ -141,7 +141,13 @@ class MainActivity : ComponentActivity() {
                             onConfirmation = { value ->
                                 openNewGameDialog.value = false
                                 Log.d("MainActivity", "Got winning score of: $value")
-                                // TODO set winning score
+
+                                try {
+                                    val targetScore = value.toInt();
+                                    onNewGame(targetScore.or(0))
+                                } catch (e: NumberFormatException) {
+                                    // Do nothing, invalid input
+                                }
                             },
                             dialogTitle = "Start a new game?",
                             dialogText = "How many points to win?",
@@ -246,7 +252,10 @@ class MainActivity : ComponentActivity() {
     fun ScoreKeeperApp() {
         val model = PlayerViewModel(this)
         Scaffold(
-            topBar = { MyAppBar() },
+            topBar = { MyAppBar(onNewGame = { targetScore ->
+                model.resetScores()
+                model.setPlayingTo(targetScore)
+            }) },
             floatingActionButtonPosition = FabPosition.End,
             floatingActionButton = { AddPlayerButton(whenConfirmed = {playerName ->
                 run {
@@ -256,6 +265,12 @@ class MainActivity : ComponentActivity() {
             }) }
         ) { paddingValues ->
              Column(modifier = Modifier.padding(paddingValues)) {
+                 if (model.playingTo.intValue > 0) {
+                     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
+                         Text("Playing to: ${model.playingTo.intValue}")
+                     }
+                 }
+
                  LazyVerticalGrid(
                      columns = GridCells.Fixed(2),
                      verticalArrangement = Arrangement.spacedBy(16.dp),
