@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.gson.Gson
 import kotlinx.coroutines.launch
 
 class PlayerViewModel(context: Context) : ViewModel() {
@@ -18,9 +19,9 @@ class PlayerViewModel(context: Context) : ViewModel() {
     }
 
     private fun loadPlayers() {
-        val savedPlayers = sharedPreferences.getStringSet("players", setOf()) ?: setOf()
+        val savedPlayersJsons = sharedPreferences.getStringSet("players", setOf()) ?: setOf()
         players.clear()
-        players.addAll(savedPlayers.map { Player(it) })
+        players.addAll(savedPlayersJsons.map { Gson().fromJson(it, Player::class.java) })
     }
 
     fun addPlayer(name: String) {
@@ -39,8 +40,8 @@ class PlayerViewModel(context: Context) : ViewModel() {
 
     private fun savePlayers() {
         viewModelScope.launch {
-            val playerNames = players.map { it.name }.toSet()
-            sharedPreferences.edit().putStringSet("players", playerNames).apply()
+            val playersAsJson = players.map { Gson().toJson(it) }.toSet()
+            sharedPreferences.edit().putStringSet("players", playersAsJson).apply()
         }
     }
 }
