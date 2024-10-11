@@ -4,10 +4,10 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.foundation.gestures.snapping.SnapPosition
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -17,8 +17,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 
@@ -154,7 +156,8 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    fun PlayerCard(name: String) {
+    fun PlayerCard(name: String, whenScoreEntered: (name: String, points: Int) -> Unit) {
+        val inputPlayerScore = remember { mutableStateOf(false) }
         Card(
             colors = CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -162,6 +165,9 @@ class MainActivity : ComponentActivity() {
             modifier = Modifier
                 .fillMaxWidth(0.5f)
                 .aspectRatio(1f),
+            onClick = {
+                inputPlayerScore.value = !inputPlayerScore.value
+            }
         ) {
             Column(
                 modifier = Modifier.fillMaxSize(),
@@ -170,13 +176,40 @@ class MainActivity : ComponentActivity() {
             ) {
                 Icon(Icons.Filled.Person, contentDescription = "Player Icon")
                 Text(name, modifier = Modifier.padding(16.dp))
-                Badge(
-                    modifier = Modifier.padding(16.dp),
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    content = {
-                        Text("100")
-                    })
+                if (inputPlayerScore.value) {
+                    val handScore = remember { mutableStateOf("") }
+                    val focusRequester = remember { FocusRequester() }
+                    LaunchedEffect(Unit) {
+                        focusRequester.requestFocus()
+                    }
+                    TextField(handScore.value, onValueChange = { newHandScore ->
+                            handScore.value = newHandScore
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                inputPlayerScore.value = false
+
+                                val points = handScore.value.toString().toInt();
+                                whenScoreEntered(name, points.or(0))
+                                handScore.value = ""
+                            }
+                        ),
+                        label = { Text(text = "Score") },
+                        modifier = Modifier.focusRequester(focusRequester),
+                        singleLine = true,
+                    )
+                }
+                else {
+                    Badge(
+                        modifier = Modifier.padding(16.dp),
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        content = {
+                            Text("100")
+                        })
+                }
+
             }
 
         }
@@ -208,7 +241,11 @@ class MainActivity : ComponentActivity() {
                      )
                  ) {
                      items(players.size) { index ->
-                         PlayerCard(players[index])
+                         PlayerCard(players[index], whenScoreEntered = {playerName, points ->
+                             run {
+                                 Log.d("Main Activity", "Got score for $playerName: $points")
+                             }
+                         })
                      }
                  }
              }
