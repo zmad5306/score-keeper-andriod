@@ -32,28 +32,26 @@ class PlayerViewModel(context: Context) : ViewModel() {
         playingTo.intValue = gameSharedPreferences.getInt("playingTo", 0)
     }
 
+    fun newGame(targetScore: Int) {
+        players.map({it.score = 0})
+        playingTo.intValue = targetScore
+        savePlayers()
+        saveGame()
+    }
+
     fun addPlayer(name: String) {
         players.add(Player(name))
         savePlayers()
     }
 
-    fun incrementScore(player: Player, points: Int) {
+    fun incrementScore(player: Player, points: Int): Boolean {
         player.score += points
         savePlayers()
+        return player.score >= playingTo.intValue
     }
 
     fun removePlayer(player: Player) {
         players.remove(player)
-    }
-
-    fun resetScores() {
-        players.forEach({it.score = 0})
-        savePlayers()
-    }
-
-    fun setPlayingTo(pt: Int) {
-        playingTo.intValue = pt
-        saveGame()
     }
 
     private fun savePlayers() {

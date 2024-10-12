@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -250,12 +251,20 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun ScoreKeeperApp() {
-        val model = PlayerViewModel(this)
+        var model = PlayerViewModel(this)
+        val snackbarHostState = remember { SnackbarHostState() }
+        val scope = rememberCoroutineScope()
+
         Scaffold(
             topBar = { MyAppBar(onNewGame = { targetScore ->
-                model.resetScores()
-                model.setPlayingTo(targetScore)
+                // TODO doesn't re-compose if the same score is entered
+                run {
+                    model.newGame(targetScore)
+                }
             }) },
+            snackbarHost = {
+                SnackbarHost(hostState = snackbarHostState)
+            },
             floatingActionButtonPosition = FabPosition.End,
             floatingActionButton = { AddPlayerButton(whenConfirmed = {playerName ->
                 run {
@@ -283,10 +292,13 @@ class MainActivity : ComponentActivity() {
                      )
                  ) {
                      items(model.players.size) { index ->
-                         PlayerCard(model.players[index], whenScoreEntered = { playerName, points ->
+                         PlayerCard(model.players[index], whenScoreEntered = { player, points ->
                              run {
-                                 Log.d("Main Activity", "Got score for $playerName: $points")
-                                 model.incrementScore(model.players[index], points)
+                                 Log.d("Main Activity", "Got score for $player.name: $points")
+                                 val winner = model.incrementScore(model.players[index], points)
+                                 if (winner) {
+                                     scope.launch { snackbarHostState.showSnackbar("${player.name} has won!") }
+                                 }
                              }
                          }, whenPlayerRemoved = {player ->
                              run {
