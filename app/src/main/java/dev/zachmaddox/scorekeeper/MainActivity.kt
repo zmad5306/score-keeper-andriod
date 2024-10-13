@@ -27,7 +27,6 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -46,6 +45,7 @@ class MainActivity : ComponentActivity() {
         dialogText: String,
         icon: ImageVector,
         keyboardType: KeyboardType = KeyboardType.Text,
+        includeInput: Boolean = false,
     ) {
         var text by remember { mutableStateOf("") }
 
@@ -57,12 +57,15 @@ class MainActivity : ComponentActivity() {
                 Text(text = dialogTitle)
             },
             text = {
-                TextField(text, onValueChange = { newText ->
+                if (includeInput) {
+                    TextField(text, onValueChange = { newText ->
                         text = newText
                     },
-                    keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-                    label = { Text(text = dialogText) }
-                )
+                        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+                        label = { Text(text = dialogText) }
+                    )
+                }
+
             },
             onDismissRequest = {
                 onDismissRequest()
@@ -110,7 +113,8 @@ class MainActivity : ComponentActivity() {
                     },
                     dialogTitle = "Add a player?",
                     dialogText = "Name",
-                    icon = Icons.Default.Person
+                    icon = Icons.Default.Person,
+                    includeInput = true,
                 )
             }
         }
@@ -118,7 +122,7 @@ class MainActivity : ComponentActivity() {
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
-    fun MyAppBar(onNewGame: (targetScore: Int) -> Unit) {
+    fun MyAppBar(onNewGame: () -> Unit) {
         val openNewGameDialog = remember { mutableStateOf(false) }
 
         TopAppBar(
@@ -144,16 +148,16 @@ class MainActivity : ComponentActivity() {
                                 Log.d("MainActivity", "Got winning score of: $value")
 
                                 try {
-                                    val targetScore = value.toInt();
-                                    onNewGame(targetScore.or(0))
+                                    onNewGame()
                                 } catch (e: NumberFormatException) {
                                     // Do nothing, invalid input
                                 }
                             },
                             dialogTitle = "Start a new game?",
-                            dialogText = "How many points to win?",
+                            dialogText = "",
                             icon = Icons.Default.PlayArrow,
                             keyboardType = KeyboardType.Number,
+                            includeInput = false
                         )
                     }
                 }
@@ -251,35 +255,20 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     fun ScoreKeeperApp() {
-        var model = PlayerViewModel(this)
-        val snackbarHostState = remember { SnackbarHostState() }
-        val scope = rememberCoroutineScope()
+        val model = PlayerViewModel(this)
 
         Scaffold(
-            topBar = { MyAppBar(onNewGame = { targetScore ->
-                // TODO doesn't re-compose if the same score is entered
-                run {
-                    model.newGame(targetScore)
-                }
-            }) },
-            snackbarHost = {
-                SnackbarHost(hostState = snackbarHostState)
+            topBar = { MyAppBar(onNewGame = {
+                    model.newGame()
+                })
             },
             floatingActionButtonPosition = FabPosition.End,
             floatingActionButton = { AddPlayerButton(whenConfirmed = {playerName ->
-                run {
-                    Log.d("Main Activity", "Adding player $playerName")
-                    model.addPlayer(playerName)
-                }
+                Log.d("Main Activity", "Adding player $playerName")
+                model.addPlayer(playerName)
             }) }
         ) { paddingValues ->
              Column(modifier = Modifier.padding(paddingValues)) {
-                 if (model.playingTo.intValue > 0) {
-                     Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
-                         Text("Playing to: ${model.playingTo.intValue}")
-                     }
-                 }
-
                  LazyVerticalGrid(
                      columns = GridCells.Fixed(2),
                      verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -293,18 +282,11 @@ class MainActivity : ComponentActivity() {
                  ) {
                      items(model.players.size) { index ->
                          PlayerCard(model.players[index], whenScoreEntered = { player, points ->
-                             run {
-                                 Log.d("Main Activity", "Got score for $player.name: $points")
-                                 val winner = model.incrementScore(model.players[index], points)
-                                 if (winner) {
-                                     scope.launch { snackbarHostState.showSnackbar("${player.name} has won!") }
-                                 }
-                             }
+                             Log.d("Main Activity", "Got score for $player.name: $points")
+                             model.incrementScore(model.players[index], points)
                          }, whenPlayerRemoved = {player ->
-                             run {
-                                 Log.d("Main Activity", "Player ${player.name} removed")
-                                 model.removePlayer(player);
-                             }
+                             Log.d("Main Activity", "Player ${player.name} removed")
+                             model.removePlayer(player);
                          })
                      }
                  }
